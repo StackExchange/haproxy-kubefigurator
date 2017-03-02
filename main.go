@@ -1,149 +1,95 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net"
-	"net/http"
-	"sort"
 	"strconv"
+
+	"gitlab.home.mikenewswanger.com/golang/haproxy-configurator"
+	"gitlab.home.mikenewswanger.com/golang/kubernetes-lightweight"
 )
+
+type configData struct {
+	KubernetesMaster string
+	EtcdHost         string
+	HaproxyEtcdKey   string
+}
 
 func main() {
 	var config = configData{
 		KubernetesMaster: "https://master.kubernetes.home.mikenewswanger.com:6443",
+		EtcdHost:         "http://etcd.kubernetes.home.mikenewswanger.com:2379",
 		HaproxyEtcdKey:   "/service-router/haproxy-config",
 	}
 
-	resp, err := http.Get(config.KubernetesMaster + "/api/v1/services")
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	var kubernetesServiceList = kubernetesServiceList{}
-	err = json.Unmarshal(body, &kubernetesServiceList)
-	if err != nil {
-		panic(err)
-	}
+	var k = kube.Kube{}
+	k.Initialize(config.KubernetesMaster)
+	buildHaproxyConfig(config, k.GetAllNodes().GetIPs(), k.GetAllServices())
+}
 
-	resp, err = http.Get(config.KubernetesMaster + "/api/v1/nodes")
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, _ = ioutil.ReadAll(resp.Body)
-	var kubernetesNodeList = kubernetesNodeList{}
-	err = json.Unmarshal(body, &kubernetesNodeList)
-	if err != nil {
-		panic(err)
-	}
+func buildHaproxyConfig(config configData, nodes map[string]string, services kube.KubernetesServiceList) {
+	var configurator = haproxyConfigurator.HaproxyConfigurator{}
+	configurator.Initialize()
 
-	var haproxyDesiredConfig = haproxyConfig{
-		ports: make(map[uint16]*haproxyListenService),
-	}
-	var kubelets = make(map[string]string)
-	for _, nodeItem := range kubernetesNodeList.Items {
-		ip, err := net.LookupHost(nodeItem.Metadata.Name)
-		if err != nil {
-			panic(err)
-		}
-		kubelets[nodeItem.Metadata.Name] = ip[0]
-	}
-
-	for _, serviceItem := range kubernetesServiceList.Items {
-		for _, port := range serviceItem.Spec.Ports {
+	for _, service := range services.Items {
+		for _, port := range service.Spec.Ports {
 			if port.NodePort == 0 {
 				continue
 			}
-			var haproxyPort = uint16(443)
-			if serviceItem.Metadata.Labels["servicerouter."+serviceItem.Metadata.Name+".listenPort"] != "" {
-				listenPort, _ := strconv.Atoi(serviceItem.Metadata.Labels["servicerouter."+serviceItem.Metadata.Name+".listenPort"])
-				haproxyPort = uint16(listenPort)
+
+			var targets = []haproxyConfigurator.HaproxyBackendTarget{}
+			for hostname, ip := range nodes {
+				targets = append(targets, haproxyConfigurator.HaproxyBackendTarget{
+					Name: hostname,
+					IP:   ip,
+					Port: port.NodePort,
+				})
 			}
-			_, exists := haproxyDesiredConfig.ports[haproxyPort]
-			if !exists {
-				haproxyDesiredConfig.ports[haproxyPort] = &haproxyListenService{
-					mode:             "http",
-					hostnameBackends: []haproxyBackend{},
+
+			var haproxyListenPort = uint16(443)
+			if service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-port"] != "" {
+				var listenPort, _ = strconv.Atoi(service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-port"])
+				haproxyListenPort = uint16(listenPort)
+			}
+
+			var haproxyMode = "http"
+			if service.Metadata.Labels["service-router."+service.Metadata.Name+".haproxy-mode"] != "" {
+				haproxyMode = service.Metadata.Labels["service-router."+service.Metadata.Name+".haproxy-mode"]
+			}
+
+			var listenIP = "*"
+			if service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-ip"] != "" {
+				listenIP = service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-ip"]
+			}
+
+			var sslCertificate = ""
+			var useSSL, exists = service.Metadata.Labels["service-router."+service.Metadata.Name+".use-ssl"]
+			if !exists || useSSL != "false" {
+				if service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"] != "" {
+					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"]
+				} else {
+					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Labels["service-router."+port.Name+".hostname"] + ".pem"
 				}
 			}
-			haproxyDesiredConfig.ports[haproxyPort].hostnameBackends = append(haproxyDesiredConfig.ports[haproxyPort].hostnameBackends, haproxyBackend{
-				serviceName: serviceItem.Metadata.Namespace + "_" + serviceItem.Metadata.Name + "_" + port.Name,
-				hostname:    serviceItem.Metadata.Labels["servicerouter."+port.Name+".hostname"],
-				port:        port.NodePort,
-			})
-			if serviceItem.Metadata.Labels["servicerouter."+port.Name+".ssl-certificate"] != "" {
-				haproxyDesiredConfig.ports[haproxyPort].sslCertificates = append(haproxyDesiredConfig.ports[haproxyPort].sslCertificates, serviceItem.Metadata.Labels["servicerouter."+port.Name+".ssl-certificate"])
-			} else {
-				haproxyDesiredConfig.ports[haproxyPort].sslCertificates = append(haproxyDesiredConfig.ports[haproxyPort].sslCertificates, serviceItem.Metadata.Labels["servicerouter."+port.Name+".hostname"]+".pem")
+
+			var ipLabel = listenIP
+			if listenIP == "*" {
+				ipLabel = "all"
 			}
-			haproxyDesiredConfig.ports[haproxyPort].useSSL = true
+
+			configurator.AddListener(
+				"kube-service_"+ipLabel+"_"+strconv.Itoa(int(haproxyListenPort))+"_listen",
+				listenIP,
+				haproxyListenPort,
+				haproxyMode,
+				service.Metadata.Labels["service-router."+port.Name+".hostname"],
+				sslCertificate,
+				haproxyConfigurator.HaproxyBackend{
+					Name:     "kube-service_" + service.Metadata.Namespace + "_" + service.Metadata.Name + "_" + port.Name + "_backend",
+					Backends: targets,
+				},
+			)
 		}
 	}
 
-	var haproxyConfigFileContents = haproxyDesiredConfig.render(kubelets)
-	println(haproxyConfigFileContents)
-	publish(config, haproxyConfigFileContents)
-}
-
-type configData struct {
-	KubernetesMaster string
-	HaproxyEtcdKey   string
-}
-
-type haproxyConfig struct {
-	ports map[uint16]*haproxyListenService
-}
-
-type haproxyListenService struct {
-	mode             string
-	sslCertificates  []string
-	hostnameBackends []haproxyBackend
-	useSSL           bool
-}
-
-type haproxyBackend struct {
-	hostname    string
-	serviceName string
-	port        uint16
-}
-
-func (h *haproxyConfig) render(proxyHosts map[string]string) string {
-	var config = ""
-	for portNumber, haproxyListener := range h.ports {
-		var portString = string(strconv.Itoa(int(portNumber)))
-		config += "frontend kube_services_https_" + portString + "\n"
-		config += "    bind *:" + portString
-		if haproxyListener.useSSL == true {
-			config += " ssl"
-			sort.Strings(haproxyListener.sslCertificates)
-			var previous = ""
-			for _, sslCertificate := range haproxyListener.sslCertificates {
-				if sslCertificate != previous {
-					config += " crt /etc/haproxy/ssl/" + sslCertificate
-					previous = sslCertificate
-				}
-			}
-		}
-		config += "\n"
-		config += "    mode " + haproxyListener.mode + "\n"
-		if haproxyListener.mode == "http" {
-			config += "    reqadd X-Forwarded-Proto:\\ https\n"
-		}
-		for _, backend := range haproxyListener.hostnameBackends {
-			config += "    use_backend kube-service_" + backend.serviceName + " if { hdr(host) -i " + backend.hostname + " }\n"
-		}
-		config += "\n"
-		for _, backend := range haproxyListener.hostnameBackends {
-			config += "backend kube-service_" + backend.serviceName + "\n"
-			config += "    mode " + haproxyListener.mode + "\n"
-			config += "    balance roundrobin\n"
-			for hostname, ip := range proxyHosts {
-				config += "    server " + hostname + " " + ip + ":" + strconv.Itoa(int(backend.port)) + " check\n"
-			}
-			config += "\n"
-		}
-	}
-	return config
+	println(configurator.Render())
+	publish(config.EtcdHost, config.HaproxyEtcdKey, configurator.Render())
 }

@@ -8,15 +8,15 @@ import (
 	"golang.org/x/net/context"
 )
 
-func publish(config configData, haproxyConfig string) {
-	cfg := client.Config{Endpoints: []string{"http://etcd.kubernetes.home.mikenewswanger.com:2379"}}
+func publish(etcdHost string, etcdKey string, haproxyConfig string) {
+	cfg := client.Config{Endpoints: []string{etcdHost}}
 	c, err := client.New(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	kapi := client.NewKeysAPI(c)
-	_, err = kapi.Set(context.Background(), config.HaproxyEtcdKey, haproxyConfig, nil)
+	_, err = kapi.Set(context.Background(), etcdKey, haproxyConfig, nil)
 	if err != nil {
 		if err == context.Canceled {
 			color.Red("Etcd request was cancelled")
