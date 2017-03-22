@@ -45,23 +45,24 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 			}
 
 			var haproxyListenPort = uint16(443)
-			if service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-port"] != "" {
-				var listenPort, _ = strconv.Atoi(service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-port"])
+			if service.Metadata.Labels["service-router."+port.Name+".listen-port"] != "" {
+				var listenPort, _ = strconv.Atoi(service.Metadata.Labels["service-router."+port.Name+".listen-port"])
 				haproxyListenPort = uint16(listenPort)
 			}
 
 			var haproxyMode = "http"
-			if service.Metadata.Labels["service-router."+service.Metadata.Name+".haproxy-mode"] != "" {
-				haproxyMode = service.Metadata.Labels["service-router."+service.Metadata.Name+".haproxy-mode"]
+			if service.Metadata.Labels["service-router."+port.Name+".haproxy-mode"] != "" {
+				haproxyMode = service.Metadata.Labels["service-router."+port.Name+".haproxy-mode"]
 			}
 
 			var listenIP = "*"
-			if service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-ip"] != "" {
-				listenIP = service.Metadata.Labels["service-router."+service.Metadata.Name+".listen-ip"]
+			if service.Metadata.Labels["service-router."+port.Name+".listen-ip"] != "" {
+				listenIP = service.Metadata.Labels["service-router."+port.Name+".listen-ip"]
 			}
 
+			// Default the service to use SSL with <hostname>.pem
 			var sslCertificate = ""
-			var useSSL, exists = service.Metadata.Labels["service-router."+service.Metadata.Name+".use-ssl"]
+			useSSL, exists := service.Metadata.Labels["service-router."+port.Name+".use-ssl"]
 			if !exists || useSSL != "false" {
 				if service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"] != "" {
 					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"]
@@ -70,21 +71,57 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 				}
 			}
 
+			// Default backends to use SSL if SSL is used on the front-end
+			var backendsUseSSL = sslCertificate != ""
+			backendsUseSSLLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-use-ssl"]
+			if exists {
+				if backendsUseSSLLabel == "false" {
+					backendsUseSSL = false
+				}
+				if backendsUseSSLLabel == "true" {
+					backendsUseSSL = true
+				}
+			}
+
+			// Default backends to use SSL if SSL is used on the front-end
+			var backendsVerifySSL = false
+			backendsVerifySSLLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-verify-ssl"]
+			if exists {
+				if backendsVerifySSLLabel == "false" {
+					backendsVerifySSL = false
+				}
+				if backendsVerifySSLLabel == "true" {
+					backendsVerifySSL = true
+				}
+			}
+
+			// Default balance method to roundrobin
+			var backendBalanceMethod = "roundrobin"
+			backendBalanceMethodLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-balance-method"]
+			if exists {
+				backendBalanceMethod = backendBalanceMethodLabel
+			}
+
 			var ipLabel = listenIP
 			if listenIP == "*" {
 				ipLabel = "all"
 			}
 
 			configurator.AddListener(
-				"kube-service_"+ipLabel+"_"+strconv.Itoa(int(haproxyListenPort))+"_listen",
-				listenIP,
-				haproxyListenPort,
-				haproxyMode,
-				service.Metadata.Labels["service-router."+port.Name+".hostname"],
-				sslCertificate,
-				haproxyConfigurator.HaproxyBackend{
-					Name:     "kube-service_" + service.Metadata.Namespace + "_" + service.Metadata.Name + "_" + port.Name + "_backend",
-					Backends: targets,
+				haproxyConfigurator.HaproxyListenerConfig{
+					Name:           "kube-service_" + ipLabel + "_" + strconv.Itoa(int(haproxyListenPort)) + "_listen",
+					ListenIP:       listenIP,
+					ListenPort:     haproxyListenPort,
+					Mode:           haproxyMode,
+					Hostname:       service.Metadata.Labels["service-router."+port.Name+".hostname"],
+					SslCertificate: sslCertificate,
+					Backend: haproxyConfigurator.HaproxyBackend{
+						Name:          "kube-service_" + service.Metadata.Namespace + "_" + service.Metadata.Name + "_" + port.Name + "_backend",
+						Backends:      targets,
+						BalanceMethod: backendBalanceMethod,
+						UseSSL:        backendsUseSSL,
+						VerifySSL:     backendsVerifySSL,
+					},
 				},
 			)
 		}
