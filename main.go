@@ -31,7 +31,7 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 
 	for _, service := range services.Items {
 		for _, port := range service.Spec.Ports {
-			if port.NodePort == 0 {
+			if service.Metadata.Labels["service-router.enabled"] != "yes" || port.NodePort == 0 {
 				continue
 			}
 
@@ -45,35 +45,35 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 			}
 
 			var haproxyListenPort = uint16(443)
-			if service.Metadata.Labels["service-router."+port.Name+".listen-port"] != "" {
-				var listenPort, _ = strconv.Atoi(service.Metadata.Labels["service-router."+port.Name+".listen-port"])
+			if service.Metadata.Annotations["service-router."+port.Name+".listen-port"] != "" {
+				var listenPort, _ = strconv.Atoi(service.Metadata.Annotations["service-router."+port.Name+".listen-port"])
 				haproxyListenPort = uint16(listenPort)
 			}
 
 			var haproxyMode = "http"
-			if service.Metadata.Labels["service-router."+port.Name+".haproxy-mode"] != "" {
-				haproxyMode = service.Metadata.Labels["service-router."+port.Name+".haproxy-mode"]
+			if service.Metadata.Annotations["service-router."+port.Name+".haproxy-mode"] != "" {
+				haproxyMode = service.Metadata.Annotations["service-router."+port.Name+".haproxy-mode"]
 			}
 
 			var listenIP = "*"
-			if service.Metadata.Labels["service-router."+port.Name+".listen-ip"] != "" {
-				listenIP = service.Metadata.Labels["service-router."+port.Name+".listen-ip"]
+			if service.Metadata.Annotations["service-router."+port.Name+".listen-ip"] != "" {
+				listenIP = service.Metadata.Annotations["service-router."+port.Name+".listen-ip"]
 			}
 
 			// Default the service to use SSL with <hostname>.pem
 			var sslCertificate = ""
-			useSSL, exists := service.Metadata.Labels["service-router."+port.Name+".use-ssl"]
+			useSSL, exists := service.Metadata.Annotations["service-router."+port.Name+".use-ssl"]
 			if !exists || useSSL != "false" {
-				if service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"] != "" {
-					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Labels["service-router."+port.Name+".ssl-certificate"]
+				if service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"] != "" {
+					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"]
 				} else {
-					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Labels["service-router."+port.Name+".hostname"] + ".pem"
+					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Annotations["service-router."+port.Name+".hostname"] + ".pem"
 				}
 			}
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsUseSSL = sslCertificate != ""
-			backendsUseSSLLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-use-ssl"]
+			backendsUseSSLLabel, exists := service.Metadata.Annotations["service-router."+port.Name+".backends-use-ssl"]
 			if exists {
 				if backendsUseSSLLabel == "false" {
 					backendsUseSSL = false
@@ -85,7 +85,7 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsVerifySSL = false
-			backendsVerifySSLLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-verify-ssl"]
+			backendsVerifySSLLabel, exists := service.Metadata.Annotations["service-router."+port.Name+".backends-verify-ssl"]
 			if exists {
 				if backendsVerifySSLLabel == "false" {
 					backendsVerifySSL = false
@@ -97,7 +97,7 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 
 			// Default balance method to roundrobin
 			var backendBalanceMethod = "roundrobin"
-			backendBalanceMethodLabel, exists := service.Metadata.Labels["service-router."+port.Name+".backends-balance-method"]
+			backendBalanceMethodLabel, exists := service.Metadata.Annotations["service-router."+port.Name+".backends-balance-method"]
 			if exists {
 				backendBalanceMethod = backendBalanceMethodLabel
 			}
@@ -113,7 +113,7 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 					ListenIP:       listenIP,
 					ListenPort:     haproxyListenPort,
 					Mode:           haproxyMode,
-					Hostname:       service.Metadata.Labels["service-router."+port.Name+".hostname"],
+					Hostname:       service.Metadata.Annotations["service-router."+port.Name+".hostname"],
 					SslCertificate: sslCertificate,
 					Backend: haproxyConfigurator.HaproxyBackend{
 						Name:          "kube-service_" + service.Metadata.Namespace + "_" + service.Metadata.Name + "_" + port.Name + "_backend",
