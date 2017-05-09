@@ -61,9 +61,10 @@ func buildHaproxyConfig(config configData, nodes map[string]string, services kub
 			}
 
 			// Default the service to use SSL with <hostname>.pem
+			// SSL is enabled by default for HTTP
 			var sslCertificate = ""
 			useSSL, exists := service.Metadata.Annotations["service-router."+port.Name+".use-ssl"]
-			if !exists || useSSL != "false" {
+			if (haproxyMode == "http" && !exists) || useSSL == "true" {
 				if service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"] != "" {
 					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"]
 				} else {
