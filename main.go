@@ -3,8 +3,8 @@ package main
 import (
 	"strconv"
 
-	"gitlab.home.mikenewswanger.com/golang/haproxy-configurator"
-	"gitlab.home.mikenewswanger.com/golang/kubernetes-lightweight"
+	"go.mikenewswanger.com/service-router-configurator/haproxy-configurator"
+	"go.mikenewswanger.com/service-router-configurator/kubernetes-lightweight"
 )
 
 type configData struct {
