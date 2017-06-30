@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/coreos/etcd/client"
 	"github.com/fatih/color"
 	"golang.org/x/net/context"
@@ -12,7 +10,7 @@ func publish(etcdHost string, etcdKey string, haproxyConfig string) {
 	cfg := client.Config{Endpoints: []string{etcdHost}}
 	c, err := client.New(cfg)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	kapi := client.NewKeysAPI(c)
