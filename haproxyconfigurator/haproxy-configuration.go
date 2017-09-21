@@ -1,4 +1,4 @@
-package haproxyConfigurator
+package haproxyconfigurator
 
 // HaproxyConfig provides an interface to create haproxy configurations
 type haproxyConfig struct {

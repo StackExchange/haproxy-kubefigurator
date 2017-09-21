@@ -1,4 +1,4 @@
-package haproxyConfigurator
+package haproxyconfigurator
 
 import (
 	"sort"
