@@ -7,14 +7,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var etcdHost = "http://etcd.kubernetes.home.mikenewswanger.com:2379"
-var etcdPublishKey = "/service-router/haproxy-config"
+var etcdHost string
+var etcdPath string
 
 func publish(haproxyConfig string) {
 	logger.Info("Publishing configuration")
 	logger.WithFields(logrus.Fields{
 		"etcd-host": etcdHost,
-		"etcd-path": etcdPublishKey,
+		"etcd-path": etcdPath,
 	}).Debug("Etcd target")
 	cfg := client.Config{Endpoints: []string{etcdHost}}
 	c, err := client.New(cfg)
@@ -23,7 +23,7 @@ func publish(haproxyConfig string) {
 	}
 
 	kapi := client.NewKeysAPI(c)
-	_, err = kapi.Set(context.Background(), etcdPublishKey, haproxyConfig, nil)
+	_, err = kapi.Set(context.Background(), etcdPath, haproxyConfig, nil)
 	if err != nil {
 		if err == context.Canceled {
 			logger.Error("Etcd request was cancelled")

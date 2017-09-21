@@ -3,10 +3,13 @@ package haproxyconfigurator
 import (
 	"strconv"
 
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
+
+	"go.mikenewswanger.com/utilities/executil"
 )
 
-var kubernetesMaster = "https://master.kubernetes.home.mikenewswanger.com:6443"
+var kubernetesContext string
 var logger = logrus.New()
 
 // SetLogger sets the logrus logger for use by the configurator
@@ -14,8 +17,16 @@ func SetLogger(l *logrus.Logger) {
 	logger = l
 }
 
+// SetVerbosity sets the logrus logger for use by the configurator
+func SetVerbosity(v uint8) {
+	executil.SetVerbosity(v)
+}
+
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(shouldPublish bool) {
+func Run(kubernetesContextString string, etcdHostString string, etcdPathString string, shouldPublish bool) {
+	kubernetesContext = kubernetesContextString
+	etcdHost = etcdHostString
+	etcdPath = etcdPathString
 	buildHaproxyConfig(getAllKubernetesNodes(), GetAllKubernetesServices(), shouldPublish)
 }
 
@@ -122,7 +133,7 @@ func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList,
 		}
 	}
 
-	println(configurator.Render())
+	color.White(configurator.Render())
 	if shouldPublish {
 		publish(configurator.Render())
 	}
