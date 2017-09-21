@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	"go.mikenewswanger.com/service-router-configurator/kubernetes-lightweight"
 )
 
 var kubernetesMaster = "https://master.kubernetes.home.mikenewswanger.com:6443"
@@ -17,12 +16,10 @@ func SetLogger(l *logrus.Logger) {
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
 func Run(shouldPublish bool) {
-	k := kube.Kube{}
-	k.Initialize(kubernetesMaster)
-	buildHaproxyConfig(k.GetAllNodes().GetIPs(), k.GetAllServices(), shouldPublish)
+	buildHaproxyConfig(getAllKubernetesNodes(), GetAllKubernetesServices(), shouldPublish)
 }
 
-func buildHaproxyConfig(nodes map[string]string, services kube.KubernetesServiceList, shouldPublish bool) {
+func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList, shouldPublish bool) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
