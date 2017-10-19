@@ -4,6 +4,8 @@ Service Router Configurator creates haproxy configurations for Kubernetes servic
 
 ## Quick Start ##
 
+`go get go.mikenewswanger.com/service-router-configurator`
+
 Service Router Configurator depends on `kubectl` on the host system.
 
 The following can be used to run and will use the default `kubectl` context to connect to the kubernetes cluster.
