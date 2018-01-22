@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"go.mikenewswanger.com/service-router-configurator/haproxyconfigurator"
+	"go.mikenewswanger.com/proxy-konfigurator/haproxyconfigurator"
 )
 
 var commandLineFlags = struct {

@@ -1,12 +1,12 @@
-# Service Router Configurator #
+# Proxy Konfigurator #
 
-Service Router Configurator creates haproxy configurations for Kubernetes services.
+Proxy Konfigurator creates haproxy configurations for Kubernetes services.
 
 ## Quick Start ##
 
-`go get go.mikenewswanger.com/service-router-configurator`
+`go get go.mikenewswanger.com/proxy-konfigurator`
 
-Service Router Configurator depends on `kubectl` on the host system.
+Proxy Konfigurator depends on `kubectl` on the host system.
 
 The following can be used to run and will use the default `kubectl` context to connect to the kubernetes cluster.
 
@@ -21,7 +21,7 @@ while true
 do
     etcdctl --endpoints "$ETCDSERVERS" watch -r /registry/services/specs > /dev/null \
         && echo "$(date): Kubernetes service updated" \
-        && /usr/local/bin/service-router-configurator --etcd-host "$ETCDSERVERS" --etcd-path /service-router/haproxy-config apply
+        && /usr/local/bin/proxy-konfigurator --etcd-host "$ETCDSERVERS" --etcd-path /service-router/haproxy-config apply
 done
 ```
 
