@@ -78,7 +78,16 @@ func GetAllKubernetesServices() KubernetesServiceList {
 	c := executil.Command{
 		Name:       "Get Kubernetes Services",
 		Executable: "kubectl",
-		Arguments:  append(getKubernetesContextOptions(), "get", "--all-namespaces", "services", "-o", "yaml"),
+		Arguments: append(
+			getKubernetesContextOptions(),
+			"get",
+			"--all-namespaces",
+			"-o",
+			"yaml",
+			"services",
+			"--selector",
+			"service-router.enabled=yes",
+		),
 	}
 	c.Run()
 	var kubernetesServiceList = KubernetesServiceList{}
