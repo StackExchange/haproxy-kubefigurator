@@ -11,6 +11,7 @@ import (
 )
 
 var commandLineFlags = struct {
+	clusterFqdn       string
 	etcdHost          string
 	etcdPath          string
 	kubernetesContext string
@@ -59,4 +60,5 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.kubernetesContext, "kubectl-context", "", "", "Kubectl Context")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdHost, "etcd-host", "", "", "etcd Host")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdPath, "etcd-path", "", "", "etcd Path")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.clusterFqdn, "cluster-fqdn", "", "", "fqdn for cluster scoped services")
 }

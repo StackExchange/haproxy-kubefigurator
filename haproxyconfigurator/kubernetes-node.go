@@ -1,7 +1,6 @@
 package haproxyconfigurator
 
 import (
-	"net"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -10,34 +9,25 @@ import (
 
 // getAllKubernetesNodes loads the nodes in the target kubernetes cluster
 func getAllKubernetesNodes() map[string]string {
-
+	nodes := map[string]string{}
 	c := executil.Command{
 		Name:       "Get Kubernetes Nodes",
 		Executable: "kubectl",
-		Arguments:  append(getKubernetesContextOptions(), "get", "nodes", "-o", "custom-columns=Name:.metadata.name"),
+		Arguments:  append(getKubernetesContextOptions(), "get", "nodes", "-o", `jsonpath={range .items[*]}{@.metadata.name} {@.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}`),
 	}
 	c.Run()
-	nodes := strings.Split(c.GetStdout(), "\n")
-	if len(nodes) < 2 {
+	kubectlOutput := strings.Split(c.GetStdout(), "\n")
+	if len(kubectlOutput) == 0 {
 		logger.Fatal("No kubernetes nodes were found")
 	}
-	return getKubernetesNodeIPs(nodes[1:])
-}
-
-// getKubernetesNodeIPs returns a map of node names to their IPs
-func getKubernetesNodeIPs(nodes []string) map[string]string {
-	nodesWithIPs := make(map[string]string)
-	for _, n := range nodes {
-		if n == "" {
+	for _, nodeRaw := range kubectlOutput {
+		if nodeRaw == "" {
 			continue
 		}
-		ip, err := net.LookupHost(n)
-		if err != nil {
-			panic(err)
-		}
-		nodesWithIPs[n] = ip[0]
+		split := strings.Fields(nodeRaw)
+		nodes[split[0]] = split[1]
 	}
-	return nodesWithIPs
+	return nodes
 }
 
 func getKubernetesContextOptions() []string {

@@ -12,7 +12,7 @@ var applyCmd = &cobra.Command{
 	Short: "Apply the dynamic configuration to the load balancers",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		haproxyconfigurator.Run(commandLineFlags.kubernetesContext, commandLineFlags.etcdHost, commandLineFlags.etcdPath, true)
+		haproxyconfigurator.Run(commandLineFlags.kubernetesContext, commandLineFlags.clusterFqdn, commandLineFlags.etcdHost, commandLineFlags.etcdPath, true)
 	},
 }
 

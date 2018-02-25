@@ -2,6 +2,7 @@ package haproxyconfigurator
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
@@ -23,14 +24,14 @@ func SetVerbosity(v uint8) {
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubernetesContextString string, etcdHostString string, etcdPathString string, shouldPublish bool) {
+func Run(kubernetesContextString string, clusterFqdn string, etcdHostString string, etcdPathString string, shouldPublish bool) {
 	kubernetesContext = kubernetesContextString
 	etcdHost = etcdHostString
 	etcdPath = etcdPathString
-	buildHaproxyConfig(getAllKubernetesNodes(), GetAllKubernetesServices(), shouldPublish)
+	buildHaproxyConfig(getAllKubernetesNodes(), GetAllKubernetesServices(), clusterFqdn, shouldPublish)
 }
 
-func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList, shouldPublish bool) {
+func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList, clusterFqdn string, shouldPublish bool) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
@@ -39,6 +40,8 @@ func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList,
 			if service.Metadata.Labels["service-router.enabled"] != "yes" || port.NodePort == 0 {
 				continue
 			}
+
+			serviceHostname := strings.Replace(service.Metadata.Annotations["service-router."+port.Name+".hostname"], "CLUSTER_FQDN", clusterFqdn, 1)
 
 			var targets = []HaproxyBackendTarget{}
 			for hostname, ip := range nodes {
@@ -73,7 +76,7 @@ func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList,
 				if service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"] != "" {
 					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Annotations["service-router."+port.Name+".ssl-certificate"]
 				} else {
-					sslCertificate = "/etc/haproxy/ssl/" + service.Metadata.Annotations["service-router."+port.Name+".hostname"] + ".pem"
+					sslCertificate = "/etc/haproxy/ssl/" + serviceHostname + ".pem"
 				}
 			}
 
@@ -119,7 +122,7 @@ func buildHaproxyConfig(nodes map[string]string, services KubernetesServiceList,
 					ListenIP:       listenIP,
 					ListenPort:     haproxyListenPort,
 					Mode:           haproxyMode,
-					Hostname:       service.Metadata.Annotations["service-router."+port.Name+".hostname"],
+					Hostname:       serviceHostname,
 					SslCertificate: sslCertificate,
 					Backend: HaproxyBackend{
 						Name:          "kube-service_" + service.Metadata.Namespace + "_" + service.Metadata.Name + "_" + port.Name + "_backend",
