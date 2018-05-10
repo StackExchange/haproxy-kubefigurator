@@ -75,12 +75,6 @@
   version = "v0.1.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/howeyc/gopass"
-  packages = ["."]
-  revision = "bf9dde6d0d2c004a008c27aaee91170c786f6db8"
-
-[[projects]]
   name = "github.com/imdario/mergo"
   packages = ["."]
   revision = "9d5f1277e9a8ed20c3684bda8fde67c05628518c"
@@ -289,6 +283,7 @@
   revision = "13b73596e4b63e03203e86f6d9c7bcc1b937c62f"
 
 [[projects]]
+  branch = "master"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -341,12 +336,11 @@
     "util/homedir",
     "util/integer"
   ]
-  revision = "23781f4d6632d88e869066eaebb743857aa1ef9b"
-  version = "v7.0.0"
+  revision = "cf2db96347ae22b3450099ca10b560cbe7f25594"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3f5007815189c5b3ac11b0d0714b1f275fc5ee439a8115418a4879e1218abdd0"
+  inputs-digest = "8994db01813f9f221f62a8d1cbb922e818506c5a74fbd740d116b529f15c9fdd"
   solver-name = "gps-cdcl"
   solver-version = 1

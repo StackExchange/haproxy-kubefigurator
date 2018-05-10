@@ -9,10 +9,10 @@ import (
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
 	Use:   "apply",
-	Short: "Apply the dynamic configuration to the load balancers",
+	Short: "Save the dynamic configuration generated from kubernetes to etcd",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterFqdn, commandLineFlags.etcdHost, commandLineFlags.etcdPath, true)
+		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterFqdn, commandLineFlags.etcdHost, commandLineFlags.etcdPath, false, true)
 	},
 }
 

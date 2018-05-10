@@ -42,7 +42,6 @@ var RootCmd = &cobra.Command{
 		}
 
 		haproxyconfigurator.SetLogger(logger)
-		haproxyconfigurator.SetVerbosity(uint8(commandLineFlags.verbosity))
 
 		logger.Debug("Pre-run complete")
 	},

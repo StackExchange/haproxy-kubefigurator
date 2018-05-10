@@ -18,7 +18,7 @@ func SetLogger(l *logrus.Logger) {
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, etcdPathString string, shouldPublish bool) {
+func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, etcdPathString string, watch bool, shouldPublish bool) {
 	kubeconfigFile = kubeconfigFilePath
 	etcdHost = etcdHostString
 	etcdPath = etcdPathString
@@ -31,6 +31,9 @@ func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, e
 		logger.Fatal(err)
 	}
 	buildHaproxyConfig(nodes, services, clusterFqdn, shouldPublish)
+	if watch {
+
+	}
 }
 
 func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterFqdn string, shouldPublish bool) {
