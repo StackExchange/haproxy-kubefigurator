@@ -28,5 +28,5 @@ type HaproxyBackend struct {
 type HaproxyBackendTarget struct {
 	Name string
 	IP   string
-	Port uint16
+	Port int32
 }

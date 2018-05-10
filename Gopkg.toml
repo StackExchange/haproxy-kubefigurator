@@ -30,10 +30,6 @@
   version = "3.2.9"
 
 [[constraint]]
-  name = "github.com/ghodss/yaml"
-  version = "1.0.0"
-
-[[constraint]]
   branch = "master"
   name = "go.mikenewswanger.com/utilities/executil"
 

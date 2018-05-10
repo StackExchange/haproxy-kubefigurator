@@ -11,11 +11,11 @@ import (
 )
 
 var commandLineFlags = struct {
-	clusterFqdn       string
-	etcdHost          string
-	etcdPath          string
-	kubernetesContext string
-	verbosity         int
+	clusterFqdn string
+	etcdHost    string
+	etcdPath    string
+	kubeconfig  string
+	verbosity   int
 }{}
 var logger = logrus.New()
 
@@ -57,7 +57,7 @@ func Execute() {
 
 func init() {
 	RootCmd.PersistentFlags().CountVarP(&commandLineFlags.verbosity, "verbosity", "v", "Output verbosity")
-	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.kubernetesContext, "kubectl-context", "", "", "Kubectl Context")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.kubeconfig, "kubeconfig", "", "", "Kubeconfig file path")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdHost, "etcd-host", "", "", "etcd Host")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdPath, "etcd-path", "", "", "etcd Path")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.clusterFqdn, "cluster-fqdn", "", "", "fqdn for cluster scoped services")
