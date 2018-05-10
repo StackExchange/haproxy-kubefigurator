@@ -111,12 +111,6 @@
   version = "v0.0.3"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/mitchellh/go-homedir"
-  packages = ["."]
-  revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
-
-[[projects]]
   name = "github.com/modern-go/concurrent"
   packages = ["."]
   revision = "bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94"
@@ -151,18 +145,6 @@
   packages = ["codec"]
   revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
   version = "v1.1.1"
-
-[[projects]]
-  branch = "master"
-  name = "go.mikenewswanger.com/utilities/executil"
-  packages = ["."]
-  revision = "4927ca7e5f1e3c765dce6a12df0de65899686138"
-
-[[projects]]
-  branch = "master"
-  name = "go.mikenewswanger.com/utilities/filesystem"
-  packages = ["."]
-  revision = "f57859e6e3c4043e6a089d1a84b57de1613dbd4f"
 
 [[projects]]
   branch = "master"
@@ -365,6 +347,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f3e7e81d6d2ff5bd20d5f148fd694ed7bf9720001288c636c04ac0266c3c2b05"
+  inputs-digest = "3f5007815189c5b3ac11b0d0714b1f275fc5ee439a8115418a4879e1218abdd0"
   solver-name = "gps-cdcl"
   solver-version = 1

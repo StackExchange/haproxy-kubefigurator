@@ -7,8 +7,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
-
-	"go.mikenewswanger.com/utilities/executil"
 )
 
 var kubeconfigFile string
@@ -17,11 +15,6 @@ var logger = logrus.New()
 // SetLogger sets the logrus logger for use by the configurator
 func SetLogger(l *logrus.Logger) {
 	logger = l
-}
-
-// SetVerbosity sets the logrus logger for use by the configurator
-func SetVerbosity(v uint8) {
-	executil.SetVerbosity(v)
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes

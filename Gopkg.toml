@@ -29,10 +29,10 @@
   name = "github.com/coreos/etcd"
   version = "3.2.9"
 
-[[constraint]]
-  branch = "master"
-  name = "go.mikenewswanger.com/utilities/executil"
-
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  branch = "master"
+  name = "k8s.io/api"

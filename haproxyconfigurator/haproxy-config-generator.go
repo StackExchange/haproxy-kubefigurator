@@ -17,7 +17,7 @@ func (h *HaproxyConfigurator) Initialize() {
 	h.desiredConfig.listenIPs = make(map[string]map[uint16]*haproxyListener)
 }
 
-// HaproxyListener structure provides configuration options
+// HaproxyListenerConfig structure provides configuration options
 type HaproxyListenerConfig struct {
 	Name             string
 	Backend          HaproxyBackend
