@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"go.mikenewswanger.com/proxy-konfigurator/haproxyconfigurator"
+	"github.com/stackexchange/haproxy-kubefigurator/haproxyconfigurator"
 )
 
 var commandLineFlags = struct {
@@ -20,8 +20,8 @@ var commandLineFlags = struct {
 var logger = logrus.New()
 
 var RootCmd = &cobra.Command{
-	Use:   "service-router-configurator",
-	Short: "Dynamically configure load balancers for Kubernetes services",
+	Use:   "haproxy-kubefigurator",
+	Short: "Dynamically configure haproxy load balancers for Kubernetes services",
 	Long:  ``,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		switch commandLineFlags.verbosity {

@@ -22,17 +22,22 @@ func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, e
 	kubeconfigFile = kubeconfigFilePath
 	etcdHost = etcdHostString
 	etcdPath = etcdPathString
-	nodes, err := getAllKubernetesNodes()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	services, err := getProxiedKubernetesServices()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	buildHaproxyConfig(nodes, services, clusterFqdn, shouldPublish)
-	if watch {
-
+	for {
+		nodes, err := getAllKubernetesNodes()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		services, err := getProxiedKubernetesServices()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		buildHaproxyConfig(nodes, services, clusterFqdn, shouldPublish)
+		if !watch {
+			break
+		}
+		// Look for changes in either services or nodes
+		waitForChanges()
+		println("Watch")
 	}
 }
 

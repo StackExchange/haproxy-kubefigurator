@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"go.mikenewswanger.com/proxy-konfigurator/haproxyconfigurator"
+	"github.com/stackexchange/haproxy-kubefigurator/haproxyconfigurator"
 )
 
 // applyCmd represents the apply command

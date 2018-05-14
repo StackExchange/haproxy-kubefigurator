@@ -1,6 +1,6 @@
 package main
 
-import "go.mikenewswanger.com/proxy-konfigurator/cmd"
+import "github.com/stackexchange/haproxy-kubefigurator/cmd"
 
 func main() {
 	cmd.Execute()

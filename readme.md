@@ -4,7 +4,7 @@ Proxy Konfigurator creates haproxy configurations for Kubernetes services.
 
 ## Quick Start ##
 
-`go get go.mikenewswanger.com/proxy-konfigurator`
+`go get -u github.com/stackexchange/haproxy-kubefigurator`
 
 Proxy Konfigurator depends on `kubectl` on the host system.
 

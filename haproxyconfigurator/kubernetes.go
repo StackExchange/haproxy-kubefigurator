@@ -24,7 +24,7 @@ func getAllKubernetesNodes() (kubernetesNodeIPs, error) {
 
 	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
-		logger.Error(err.Error())
+		return nil, err
 	}
 	for _, node := range nodes.Items {
 		for _, address := range node.Status.Addresses {
@@ -37,20 +37,18 @@ func getAllKubernetesNodes() (kubernetesNodeIPs, error) {
 }
 
 func getProxiedKubernetesServices() ([]v1.Service, error) {
-	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
-	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
 	proxiedServices := []v1.Service{}
-	services, err := clientset.CoreV1().Services("").List(metav1.ListOptions{})
+	services, err := clientset.CoreV1().Services(v1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -60,4 +58,21 @@ func getProxiedKubernetesServices() ([]v1.Service, error) {
 		}
 	}
 	return proxiedServices, nil
+}
+
+func waitForChanges() error {
+	// // use the current context in kubeconfig
+	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// clientset, err := kubernetes.NewForConfig(config)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// w, err := clientset.CoreV1().Services("").Watch(metav1.ListOptions{})
+	// return err
+	return nil
 }
