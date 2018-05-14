@@ -1,6 +1,13 @@
 # Proxy Konfigurator #
 
-Proxy Konfigurator creates haproxy configurations for Kubernetes services.
+Proxy Konfigurator creates haproxy configurations for Kubernetes services and uses an etcd back-end to store the configurations for consumption by load balancers.  This allows for automatic service endpoint creation when using haproxy on-premises.  It supports in-cluster and out-of-cluster configuration options for interacting with the Kubernetes API and supports certificate based authentication against the etcd cluster.
+
+Its main functionality operates in two loops:
+
+### Producer Loop ###
+
+* `haproxy-kubefigurator` watches for changes to service endpoints
+* `haproxy-kubefigurator` watches for changes to service endpoints
 
 ## Quick Start ##
 
@@ -47,3 +54,48 @@ do
 done
 
 ```
+
+### Kubernetes Service Configuration
+
+The service configures services based on the following criteria:
+
+* Label `haproxy-kubefigurator.enabled` is set to "yes"
+* Service type is a NodePort
+
+All annotations are prefixed by the namespace `haproxy-kubefigurator.` and the name of the port in the NodePort spec.  Let's break down the following example:
+
+```
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  annotations:
+    haproxy-kubefigurator.web-ui.hostname: CLUSTER-dashboard.ds.stackexchange.com
+  labels:
+    k8s-app: kubernetes-dashboard
+    haproxy-kubefigurator.enabled: "yes"
+  name: kubernetes-dashboard
+  namespace: kube-system
+spec:
+  type: NodePort
+  ports:
+    - name: web-ui
+      port: 443
+      targetPort: 8443
+  selector:
+    k8s-app: kubernetes-dashboard
+```
+
+The NodePort being mapped under the service spec has the name `web-ui`--that means the prefix for all configuration options for that service (annotations) will all start with `haproxy-kubefigurator.web-ui.`.  The hostname uses the `CLUSTER` alias, which simply does a text replacement with the value passed via `--cluster` flag.  This can be useful for runtime templating of service URLs.
+
+The following annotations can be used to configure service properties:
+
+* `backends-balance-method`: Method to balance requests across back-ends (default 'roundrobin')
+* `backends-use-ssl`: "true" to use TLS between haproxy and back-end (default 'true' for HTTP services; otherwise 'false')
+* `backends-verify-ssl`: 'true' to verify certificate chain between haproxy and back-end (default 'false')
+* `haproxy-mode`: Listen mode for haproxy front-end (default 'http')
+* `hostname`: HTTP hostname to listen on. (default '')
+* `listen-ip`: IP to listen on. (default '*')
+* `listen-port`: Port for the service to listen on.  Multiple HTTP endpoints can be specified for one port, and haproxy will use SNI if multiple certificates are specified. (default '443')
+* `use-ssl`: "true" to use TLS (default 'true' for HTTP services; otherwise 'false')
