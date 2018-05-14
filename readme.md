@@ -6,37 +6,44 @@ Proxy Konfigurator creates haproxy configurations for Kubernetes services.
 
 `go get -u github.com/stackexchange/haproxy-kubefigurator`
 
-Proxy Konfigurator depends on `kubectl` on the host system.
+The following block can be used to watch for changes to service specs (via kubernetes - this should be moved to use kubernetes client-go watch functionality on nodes and services instead) and update a centrally stored haproxy configuration (in etcd) on change.
 
-The following can be used to run and will use the default `kubectl` context to connect to the kubernetes cluster.
-
-Environment variables:
-
-- ETCDSERVERS: list of etcd servers to connect to
+By default, if `--kubeconfig` is not set, the service will operate in in-cluster configuration mode; allowing full functionality with minimal configuration when running in a pod inside the cluster.
 
 ```bash
 #!/bin/bash
 
 while true
 do
-    etcdctl --endpoints "$ETCDSERVERS" watch -r /registry/services/specs > /dev/null \
+    # Watch etcd for k8s service spec changes
+    etcdctl --endpoints https://etcd1:2379,https://etcd2:2379,https://etcd3:2379 watch -r /registry/services/specs > /dev/null \
         && echo "$(date): Kubernetes service updated" \
-        && /usr/local/bin/proxy-konfigurator --etcd-host "$ETCDSERVERS" --etcd-path /service-router/haproxy-config apply
+        && /usr/local/bin/haproxy-kubefigurator \
+            --etcd-host https://etcd1:2379 \
+            --etcd-host https://etcd2:2379 \
+            --etcd-host https://etcd3:2379 \
+            --etcd-path /service-router/haproxy-config \
+            --etcd-ca-file /path/ca.crt \
+            --etcd-client-cert-file /path/client.crt \
+            --etcd-client-key-file /path/client.key \
+            apply
 done
+
 ```
 
-This will save off the dynamically generated configuration to `/service-router/haproxy-config` in etcd and can be consumed by haproxy nodes.  Haproxy will need to be configured to use `/etc/haproxy/dynamic.cfg` as a configuration file in the below example:
+Once the configuration is saved off to etcd, consumers can load in the config and update themselves.  This should be orchestrated across nodes to prevent service-level outages during updates.  Haproxy needs to be configured to use `/etc/haproxy/dynamic.cfg` as a configuration file for the following example to work:
 
 ```bash
 #!/bin/bash
 
 while true
 do
-    etcdctl --endpoints "$ETCDSERVERS" watch /service-router/haproxy-config > /dev/null \
+    etcdctl --endpoints https://etcd1:2379,https://etcd2:2379,https://etcd3:2379 watch /stackexchange.com/haproxy-kubefigurator/config > /dev/null \
         && echo "$(date): HAproxy config updated" \
-        && etcdctl --endpoints "$ETCDSERVERS" get /service-router/haproxy-config > /etc/haproxy/dynamic.cfg \
+        && etcdctl --endpoints https://etcd1:2379,https://etcd2:2379,https://etcd3:2379 get /stackexchange.com/haproxy-kubefigurator/config > /etc/haproxy/dynamic.cfg \
         && /usr/local/sbin/haproxy -f /etc/haproxy/haproxy.cfg -f /etc/haproxy/dynamic.cfg -c -q \
         && echo "$(date): HAproxy config check passed; reloading" \
         && systemctl restart haproxy
 done
+
 ```
