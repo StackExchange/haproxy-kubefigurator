@@ -12,7 +12,7 @@ var viewCmd = &cobra.Command{
 	Short: "View the dynamically generated configuration",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterName, commandLineFlags.etcdHost, commandLineFlags.etcdPath, false, false)
+		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterName, commandLineFlags.etcdOptions, false, false)
 	},
 }
 

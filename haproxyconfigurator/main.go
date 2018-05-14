@@ -20,10 +20,8 @@ func SetLogger(l *logrus.Logger) {
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubeconfigFilePath string, clusterName string, etcdHostString string, etcdPathString string, watch bool, shouldPublish bool) {
+func Run(kubeconfigFilePath string, clusterName string, etcdOptions EtcdOptions, watch bool, shouldPublish bool) {
 	kubeconfigFile = kubeconfigFilePath
-	etcdHost = etcdHostString
-	etcdPath = etcdPathString
 	for {
 		nodes, err := getAllKubernetesNodes()
 		if err != nil {
@@ -33,7 +31,14 @@ func Run(kubeconfigFilePath string, clusterName string, etcdHostString string, e
 		if err != nil {
 			logger.Fatal(err)
 		}
-		buildHaproxyConfig(nodes, services, clusterName, shouldPublish)
+		config, err := buildHaproxyConfig(nodes, services, clusterName, shouldPublish)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		color.White(config)
+		if shouldPublish {
+			publish(config, etcdOptions)
+		}
 		if !watch {
 			break
 		}
@@ -43,7 +48,7 @@ func Run(kubeconfigFilePath string, clusterName string, etcdHostString string, e
 	}
 }
 
-func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string, shouldPublish bool) {
+func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string, shouldPublish bool) (string, error) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
@@ -148,8 +153,5 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterN
 		}
 	}
 
-	color.White(configurator.Render())
-	if shouldPublish {
-		publish(configurator.Render())
-	}
+	return configurator.Render(), nil
 }
