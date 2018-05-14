@@ -1,13 +1,20 @@
-# Proxy Konfigurator #
+# Haproxy Load Balancer Configuration for Kubernetes #
 
-Proxy Konfigurator creates haproxy configurations for Kubernetes services and uses an etcd back-end to store the configurations for consumption by load balancers.  This allows for automatic service endpoint creation when using haproxy on-premises.  It supports in-cluster and out-of-cluster configuration options for interacting with the Kubernetes API and supports certificate based authentication against the etcd cluster.
+Haproxy Kubefigurator creates haproxy configurations for Kubernetes services and uses an etcd back-end to store the configurations for consumption by load balancers.  This allows for automatic service endpoint creation when using haproxy on-premises.  It supports in-cluster and out-of-cluster configuration options for interacting with the Kubernetes API and supports certificate based authentication against the etcd cluster.
 
 Its main functionality operates in two loops:
 
 ### Producer Loop ###
 
-* `haproxy-kubefigurator` watches for changes to service endpoints
-* `haproxy-kubefigurator` watches for changes to service endpoints
+* Watches for changes to service endpoints
+* Loads all node and service definitions and builds a dynamic configuration for configured services
+* Publishes configuration file to etcd
+
+### Consumer Loop ###
+
+* Watches etcd for changes
+* Consumes changes from etcd into a file
+* Tests the configuration locally and reloads haproxy service
 
 ## Quick Start ##
 
@@ -38,7 +45,7 @@ done
 
 ```
 
-Once the configuration is saved off to etcd, consumers can load in the config and update themselves.  This should be orchestrated across nodes to prevent service-level outages during updates.  Haproxy needs to be configured to use `/etc/haproxy/dynamic.cfg` as a configuration file for the following example to work:
+Once the configuration is saved off to etcd, consumers can load in the config and update themselves.  Haproxy needs to be configured to use `/etc/haproxy/dynamic.cfg` as a configuration file for the following example to work:
 
 ```bash
 #!/bin/bash
