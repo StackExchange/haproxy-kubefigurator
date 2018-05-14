@@ -41,7 +41,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.clusterName, "cluster", "", "", "cluster string for scoped services")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdOptions.CAFile, "etcd-ca-file", "", "", "File containing CA to trust for etcd connection")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdOptions.ClientCertFile, "etcd-client-cert-file", "", "", "File containing client cert file to authorize etcd connection")
-	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdOptions.ClientCertFile, "etcd-client-key-file", "", "", "File containing client cert key file to authorize etcd connection")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdOptions.ClientKeyFile, "etcd-client-key-file", "", "", "File containing client cert key file to authorize etcd connection")
 	RootCmd.PersistentFlags().StringSliceVarP(&commandLineFlags.etcdOptions.Hosts, "etcd-host", "", []string{"http://127.0.0.1:2379"}, "etcd Host; can be specified multiple times for multiple hosts")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.etcdOptions.Path, "etcd-path", "", "stackexchange.com/haproxy-kubefigurator/config", "etcd Path")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.kubeconfig, "kubeconfig", "", "", "Kubeconfig file path; leave empty for in-cluster config")
@@ -81,6 +81,16 @@ func persistentPreRun(cmd *cobra.Command, args []string) {
 		if !commandLineFlags.etcdOptions.TLSConfig.RootCAs.AppendCertsFromPEM(cert) {
 			logger.Fatalf("Could not load certificate from %s", commandLineFlags.etcdOptions.CAFile)
 		}
+	}
+	if commandLineFlags.etcdOptions.ClientCertFile != "" && commandLineFlags.etcdOptions.ClientKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(commandLineFlags.etcdOptions.ClientCertFile, commandLineFlags.etcdOptions.ClientKeyFile)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		commandLineFlags.etcdOptions.TLSConfig.Certificates = []tls.Certificate{cert}
+		// commandLineFlags.etcdOptions.TLSConfig.BuildNameToCertificate()
+	} else if commandLineFlags.etcdOptions.ClientCertFile != "" || commandLineFlags.etcdOptions.ClientKeyFile != "" {
+		logger.Fatal("Both --etcd-client-cert-file and etcd-client-key-file must be specified to use client auth via TLS certificates")
 	}
 
 	logger.Debug("Pre-run complete")
