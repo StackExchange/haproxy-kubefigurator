@@ -53,7 +53,7 @@ func getProxiedKubernetesServices() ([]v1.Service, error) {
 		return nil, err
 	}
 	for _, service := range services.Items {
-		if service.Labels["service-router.enabled"] == "yes" {
+		if service.Labels["haproxy-kubefigurator.enabled"] == "yes" {
 			proxiedServices = append(proxiedServices, service)
 		}
 	}

@@ -9,8 +9,10 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-var kubeconfigFile string
-var logger = logrus.New()
+var (
+	kubeconfigFile string
+	logger         = logrus.New()
+)
 
 // SetLogger sets the logrus logger for use by the configurator
 func SetLogger(l *logrus.Logger) {
@@ -18,7 +20,7 @@ func SetLogger(l *logrus.Logger) {
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, etcdPathString string, watch bool, shouldPublish bool) {
+func Run(kubeconfigFilePath string, clusterName string, etcdHostString string, etcdPathString string, watch bool, shouldPublish bool) {
 	kubeconfigFile = kubeconfigFilePath
 	etcdHost = etcdHostString
 	etcdPath = etcdPathString
@@ -31,17 +33,17 @@ func Run(kubeconfigFilePath string, clusterFqdn string, etcdHostString string, e
 		if err != nil {
 			logger.Fatal(err)
 		}
-		buildHaproxyConfig(nodes, services, clusterFqdn, shouldPublish)
+		buildHaproxyConfig(nodes, services, clusterName, shouldPublish)
 		if !watch {
 			break
 		}
 		// Look for changes in either services or nodes
 		waitForChanges()
-		println("Watch")
+		println("Watch Fired")
 	}
 }
 
-func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterFqdn string, shouldPublish bool) {
+func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string, shouldPublish bool) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
@@ -51,7 +53,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 				continue
 			}
 
-			serviceHostname := strings.Replace(service.Annotations["service-router."+port.Name+".hostname"], "CLUSTER_FQDN", clusterFqdn, 1)
+			serviceHostname := strings.Replace(service.Annotations["haproxy-kubefigurator."+port.Name+".hostname"], "CLUSTER", clusterName, 1)
 
 			var targets = []HaproxyBackendTarget{}
 			for hostname, ip := range nodes {
@@ -63,28 +65,28 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 			}
 
 			var haproxyListenPort = uint16(443)
-			if service.Annotations["service-router."+port.Name+".listen-port"] != "" {
-				var listenPort, _ = strconv.Atoi(service.Annotations["service-router."+port.Name+".listen-port"])
+			if service.Annotations["haproxy-kubefigurator."+port.Name+".listen-port"] != "" {
+				var listenPort, _ = strconv.Atoi(service.Annotations["haproxy-kubefigurator."+port.Name+".listen-port"])
 				haproxyListenPort = uint16(listenPort)
 			}
 
 			var haproxyMode = "http"
-			if service.Annotations["service-router."+port.Name+".haproxy-mode"] != "" {
-				haproxyMode = service.Annotations["service-router."+port.Name+".haproxy-mode"]
+			if service.Annotations["haproxy-kubefigurator."+port.Name+".haproxy-mode"] != "" {
+				haproxyMode = service.Annotations["haproxy-kubefigurator."+port.Name+".haproxy-mode"]
 			}
 
 			var listenIP = "*"
-			if service.Annotations["service-router."+port.Name+".listen-ip"] != "" {
-				listenIP = service.Annotations["service-router."+port.Name+".listen-ip"]
+			if service.Annotations["haproxy-kubefigurator."+port.Name+".listen-ip"] != "" {
+				listenIP = service.Annotations["haproxy-kubefigurator."+port.Name+".listen-ip"]
 			}
 
 			// Default the service to use SSL with <hostname>.pem
 			// SSL is enabled by default for HTTP
 			var sslCertificate = ""
-			useSSL, exists := service.Annotations["service-router."+port.Name+".use-ssl"]
+			useSSL, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".use-ssl"]
 			if (haproxyMode == "http" && !exists) || useSSL == "true" {
-				if service.Annotations["service-router."+port.Name+".ssl-certificate"] != "" {
-					sslCertificate = "/etc/haproxy/ssl/" + service.Annotations["service-router."+port.Name+".ssl-certificate"]
+				if service.Annotations["haproxy-kubefigurator."+port.Name+".ssl-certificate"] != "" {
+					sslCertificate = "/etc/haproxy/ssl/" + service.Annotations["haproxy-kubefigurator."+port.Name+".ssl-certificate"]
 				} else {
 					sslCertificate = "/etc/haproxy/ssl/" + serviceHostname + ".pem"
 				}
@@ -92,7 +94,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsUseSSL = sslCertificate != ""
-			backendsUseSSLLabel, exists := service.Annotations["service-router."+port.Name+".backends-use-ssl"]
+			backendsUseSSLLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-use-ssl"]
 			if exists {
 				if backendsUseSSLLabel == "false" {
 					backendsUseSSL = false
@@ -104,7 +106,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsVerifySSL = false
-			backendsVerifySSLLabel, exists := service.Annotations["service-router."+port.Name+".backends-verify-ssl"]
+			backendsVerifySSLLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-verify-ssl"]
 			if exists {
 				if backendsVerifySSLLabel == "false" {
 					backendsVerifySSL = false
@@ -116,7 +118,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 
 			// Default balance method to roundrobin
 			var backendBalanceMethod = "roundrobin"
-			backendBalanceMethodLabel, exists := service.Annotations["service-router."+port.Name+".backends-balance-method"]
+			backendBalanceMethodLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-balance-method"]
 			if exists {
 				backendBalanceMethod = backendBalanceMethodLabel
 			}
@@ -128,14 +130,14 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterF
 
 			configurator.AddListener(
 				HaproxyListenerConfig{
-					Name:           "kube-service_" + ipLabel + "_" + strconv.Itoa(int(haproxyListenPort)) + "_listen",
+					Name:           "k8s-service_" + ipLabel + "_" + strconv.Itoa(int(haproxyListenPort)) + "_listen",
 					ListenIP:       listenIP,
 					ListenPort:     haproxyListenPort,
 					Mode:           haproxyMode,
 					Hostname:       serviceHostname,
 					SslCertificate: sslCertificate,
 					Backend: HaproxyBackend{
-						Name:          "kube-service_" + service.Namespace + "_" + service.Name + "_" + port.Name + "_backend",
+						Name:          "k8s-service_" + service.Namespace + "_" + service.Name + "_" + port.Name + "_backend",
 						Backends:      targets,
 						BalanceMethod: backendBalanceMethod,
 						UseSSL:        backendsUseSSL,

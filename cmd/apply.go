@@ -12,7 +12,7 @@ var applyCmd = &cobra.Command{
 	Short: "Save the dynamic configuration generated from kubernetes to etcd",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterFqdn, commandLineFlags.etcdHost, commandLineFlags.etcdPath, false, true)
+		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterName, commandLineFlags.etcdHost, commandLineFlags.etcdPath, false, true)
 	},
 }
 

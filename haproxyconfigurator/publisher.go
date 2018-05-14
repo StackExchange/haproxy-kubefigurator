@@ -7,8 +7,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var etcdHost string
-var etcdPath string
+var (
+	etcdHost string
+	etcdPath string
+)
 
 func publish(haproxyConfig string) {
 	logger.Info("Publishing configuration")

@@ -28,7 +28,7 @@ done
 This will save off the dynamically generated configuration to `/service-router/haproxy-config` in etcd and can be consumed by haproxy nodes.  Haproxy will need to be configured to use `/etc/haproxy/dynamic.cfg` as a configuration file in the below example:
 
 ```bash
-! /bin/bash
+#!/bin/bash
 
 while true
 do
