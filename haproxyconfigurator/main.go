@@ -37,18 +37,21 @@ func Run(kubeconfigFilePath string, clusterName string, etcdOptions EtcdOptions,
 		if err != nil {
 			logger.Fatal(err)
 		}
-		color.White(config)
-		logger.Debug(shouldPublish, config != lastConfigPushed)
-		if shouldPublish && config != lastConfigPushed {
-			publish(config, etcdOptions)
-			lastConfigPushed = config
+		anyChange := config != lastConfigPushed
+		if anyChange {
+			color.White(config)
+			if shouldPublish {
+				publish(config, etcdOptions)
+				lastConfigPushed = config
+			}
+		} else {
+			color.Green("No change")
 		}
 		if !watch {
 			break
 		}
 		// Look for changes in either services or nodes
 		waitForChanges()
-		println("Watch Fired")
 	}
 }
 
