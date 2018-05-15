@@ -23,6 +23,7 @@ func SetLogger(l *logrus.Logger) {
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
 func Run(kubeconfigFilePath string, clusterName string, etcdOptions EtcdOptions, watch bool, shouldPublish bool) {
 	kubeconfigFile = kubeconfigFilePath
+	lastConfigPushed := ""
 	for {
 		nodes, err := getAllKubernetesNodes()
 		if err != nil {
@@ -37,8 +38,10 @@ func Run(kubeconfigFilePath string, clusterName string, etcdOptions EtcdOptions,
 			logger.Fatal(err)
 		}
 		color.White(config)
-		if shouldPublish {
+		logger.Debug(shouldPublish, config != lastConfigPushed)
+		if shouldPublish && config != lastConfigPushed {
 			publish(config, etcdOptions)
+			lastConfigPushed = config
 		}
 		if !watch {
 			break

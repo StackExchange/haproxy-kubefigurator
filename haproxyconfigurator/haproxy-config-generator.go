@@ -108,10 +108,25 @@ func (h *HaproxyConfigurator) AddListener(
 // Render the haproxy configuration
 func (h *HaproxyConfigurator) Render() string {
 	var config = ""
-
-	// Build Front-Ends
+	// Sort listenIPS for determinism
+	ips := make([]string, 0, len(h.desiredConfig.listenIPs))
 	for listenIP := range h.desiredConfig.listenIPs {
-		for port, listener := range h.desiredConfig.listenIPs[listenIP] {
+		ips = append(ips, listenIP)
+		sort.Strings(ips)
+	}
+	sortListenerMap := func(inner map[uint16]*haproxyListener) []uint16 {
+		ports := make([]uint16, 0, len(inner))
+		for port := range inner {
+			ports = append(ports, port)
+			sort.Slice(ports, func(i int, j int) bool { return ports[i] < ports[j] })
+		}
+		return ports
+	}
+	// Build Front-Ends
+	for _, listenIP := range ips {
+		innerMap := h.desiredConfig.listenIPs[listenIP]
+		for _, port := range sortListenerMap(innerMap) {
+			listener := innerMap[port]
 			config += "frontend " + listener.name + "\n"
 			config += "    mode " + listener.mode + "\n"
 			config += "    bind " + listenIP + ":" + strconv.Itoa(int(port))
@@ -147,9 +162,17 @@ func (h *HaproxyConfigurator) Render() string {
 	}
 
 	// Build Back-Ends
-	for listenIP := range h.desiredConfig.listenIPs {
-		for _, listener := range h.desiredConfig.listenIPs[listenIP] {
-			for _, backend := range listener.hostnameBackends {
+	for _, listenIP := range ips {
+		innerMap := h.desiredConfig.listenIPs[listenIP]
+		for _, port := range sortListenerMap(innerMap) {
+			listener := innerMap[port]
+			backends := make([]string, 0, len(listener.hostnameBackends))
+			for name := range listener.hostnameBackends {
+				backends = append(backends, name)
+			}
+			sort.Strings(backends)
+			for _, name := range backends {
+				backend := listener.hostnameBackends[name]
 				config += "backend " + backend.Name + "\n"
 				config += "    mode " + listener.mode + "\n"
 				config += "    balance " + backend.BalanceMethod + "\n"
