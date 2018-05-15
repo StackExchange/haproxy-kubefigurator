@@ -1,6 +1,7 @@
 package haproxyconfigurator
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -48,17 +49,35 @@ func Run(kubeconfigFilePath string, clusterName string, etcdOptions EtcdOptions,
 	}
 }
 
+type servicePortWrapper v1.ServicePort
+
+func (s servicePortWrapper) annoName(name string) string {
+	return fmt.Sprintf("haproxy-kubefigurator.%s.%s", s.Name, name)
+}
+
+type serviceWrapper v1.Service
+
+func (s serviceWrapper) anno(p servicePortWrapper, name string) string {
+	return s.Annotations[p.annoName(name)]
+}
+func (s serviceWrapper) annoExists(p servicePortWrapper, name string) (string, bool) {
+	str, ok := s.Annotations[p.annoName(name)]
+	return str, ok
+}
+
 func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string, shouldPublish bool) (string, error) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
-	for _, service := range services {
-		for _, port := range service.Spec.Ports {
+	for _, svc := range services {
+		service := serviceWrapper(svc)
+		for _, p := range service.Spec.Ports {
+			port := servicePortWrapper(p)
 			if port.NodePort == 0 {
 				continue
 			}
 
-			serviceHostname := strings.Replace(service.Annotations["haproxy-kubefigurator."+port.Name+".hostname"], "CLUSTER", clusterName, 1)
+			serviceHostname := strings.Replace(service.anno(port, "hostname"), "CLUSTER", clusterName, 1)
 
 			var targets = []HaproxyBackendTarget{}
 			for hostname, ip := range nodes {
@@ -70,28 +89,28 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterN
 			}
 
 			var haproxyListenPort = uint16(443)
-			if service.Annotations["haproxy-kubefigurator."+port.Name+".listen-port"] != "" {
-				var listenPort, _ = strconv.Atoi(service.Annotations["haproxy-kubefigurator."+port.Name+".listen-port"])
+			if lp := service.anno(port, "listen-port"); lp != "" {
+				var listenPort, _ = strconv.Atoi(lp)
 				haproxyListenPort = uint16(listenPort)
 			}
 
 			var haproxyMode = "http"
-			if service.Annotations["haproxy-kubefigurator."+port.Name+".haproxy-mode"] != "" {
-				haproxyMode = service.Annotations["haproxy-kubefigurator."+port.Name+".haproxy-mode"]
+			if mode := service.anno(port, "haproxy-mode"); mode != "" {
+				haproxyMode = mode
 			}
 
 			var listenIP = "*"
-			if service.Annotations["haproxy-kubefigurator."+port.Name+".listen-ip"] != "" {
-				listenIP = service.Annotations["haproxy-kubefigurator."+port.Name+".listen-ip"]
+			if lIP := service.anno(port, "listen-ip"); lIP != "" {
+				listenIP = lIP
 			}
 
 			// Default the service to use SSL with <hostname>.pem
 			// SSL is enabled by default for HTTP
 			var sslCertificate = ""
-			useSSL, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".use-ssl"]
+			useSSL, exists := service.annoExists(port, "use-ssl")
 			if (haproxyMode == "http" && !exists) || useSSL == "true" {
-				if service.Annotations["haproxy-kubefigurator."+port.Name+".ssl-certificate"] != "" {
-					sslCertificate = "/etc/haproxy/ssl/" + service.Annotations["haproxy-kubefigurator."+port.Name+".ssl-certificate"]
+				if cert := service.anno(port, "ssl-certificate"); cert != "" {
+					sslCertificate = "/etc/haproxy/ssl/" + cert
 				} else {
 					sslCertificate = "/etc/haproxy/ssl/" + serviceHostname + ".pem"
 				}
@@ -99,7 +118,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterN
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsUseSSL = sslCertificate != ""
-			backendsUseSSLLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-use-ssl"]
+			backendsUseSSLLabel, exists := service.annoExists(port, "backends-use-ssl")
 			if exists {
 				if backendsUseSSLLabel == "false" {
 					backendsUseSSL = false
@@ -111,7 +130,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterN
 
 			// Default backends to use SSL if SSL is used on the front-end
 			var backendsVerifySSL = false
-			backendsVerifySSLLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-verify-ssl"]
+			backendsVerifySSLLabel, exists := service.annoExists(port, "backends-verify-ssl")
 			if exists {
 				if backendsVerifySSLLabel == "false" {
 					backendsVerifySSL = false
@@ -123,7 +142,7 @@ func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterN
 
 			// Default balance method to roundrobin
 			var backendBalanceMethod = "roundrobin"
-			backendBalanceMethodLabel, exists := service.Annotations["haproxy-kubefigurator."+port.Name+".backends-balance-method"]
+			backendBalanceMethodLabel, exists := service.annoExists(port, "backends-balance-method")
 			if exists {
 				backendBalanceMethod = backendBalanceMethodLabel
 			}
