@@ -108,10 +108,33 @@ func (h *HaproxyConfigurator) AddListener(
 // Render the haproxy configuration
 func (h *HaproxyConfigurator) Render() string {
 	var config = ""
-
-	// Build Front-Ends
+	// Sort listenIPS for determinism
+	ips := make([]string, 0, len(h.desiredConfig.listenIPs))
 	for listenIP := range h.desiredConfig.listenIPs {
-		for port, listener := range h.desiredConfig.listenIPs[listenIP] {
+		ips = append(ips, listenIP)
+		sort.Strings(ips)
+	}
+	sortListenerMap := func(inner map[uint16]*haproxyListener) []uint16 {
+		ports := make([]uint16, 0, len(inner))
+		for port := range inner {
+			ports = append(ports, port)
+		}
+		sort.Slice(ports, func(i int, j int) bool { return ports[i] < ports[j] })
+		return ports
+	}
+	sortBackendMap := func(inner map[string]*HaproxyBackend) []string {
+		backends := make([]string, 0, len(inner))
+		for name := range inner {
+			backends = append(backends, name)
+		}
+		sort.Strings(backends)
+		return backends
+	}
+	// Build Front-Ends
+	for _, listenIP := range ips {
+		innerMap := h.desiredConfig.listenIPs[listenIP]
+		for _, port := range sortListenerMap(innerMap) {
+			listener := innerMap[port]
 			config += "frontend " + listener.name + "\n"
 			config += "    mode " + listener.mode + "\n"
 			config += "    bind " + listenIP + ":" + strconv.Itoa(int(port))
@@ -119,6 +142,7 @@ func (h *HaproxyConfigurator) Render() string {
 				sort.Strings(listener.sslCertificates)
 				config += " ssl"
 				var previous = ""
+				sort.Strings(listener.sslCertificates)
 				for _, certificate := range listener.sslCertificates {
 					if previous != certificate {
 						config += " crt " + certificate
@@ -133,7 +157,8 @@ func (h *HaproxyConfigurator) Render() string {
 			config += "\n"
 			config += "\n"
 			if listener.mode == "http" {
-				for hostname, backend := range listener.hostnameBackends {
+				for _, hostname := range sortBackendMap(listener.hostnameBackends) {
+					backend := listener.hostnameBackends[hostname]
 					config += "    # Set up backend selection for " + hostname + "\n"
 					config += "    use_backend " + backend.Name + " if { hdr(host) -i " + hostname + " }\n"
 					config += "    use_backend " + backend.Name + " if { hdr(host) -i " + hostname + ":" + strconv.Itoa(int(port)) + " }\n"
@@ -147,14 +172,18 @@ func (h *HaproxyConfigurator) Render() string {
 	}
 
 	// Build Back-Ends
-	for listenIP := range h.desiredConfig.listenIPs {
-		for _, listener := range h.desiredConfig.listenIPs[listenIP] {
-			for _, backend := range listener.hostnameBackends {
+	for _, listenIP := range ips {
+		innerMap := h.desiredConfig.listenIPs[listenIP]
+		for _, port := range sortListenerMap(innerMap) {
+			listener := innerMap[port]
+			for _, name := range sortBackendMap(listener.hostnameBackends) {
+				backend := listener.hostnameBackends[name]
 				config += "backend " + backend.Name + "\n"
 				config += "    mode " + listener.mode + "\n"
 				config += "    balance " + backend.BalanceMethod + "\n"
 				config += "\n"
 				config += "    # Backend Servers\n"
+				sort.Slice(backend.Backends, func(i, j int) bool { return backend.Backends[i].Name < backend.Backends[j].Name })
 				for _, backendServer := range backend.Backends {
 					config += "    server " + backendServer.Name + " " + backendServer.IP + ":" + strconv.Itoa(int(backendServer.Port))
 					config += " check"

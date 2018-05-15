@@ -1,6 +1,8 @@
 package haproxyconfigurator
 
 import (
+	"time"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -61,6 +63,7 @@ func getProxiedKubernetesServices() ([]v1.Service, error) {
 }
 
 func waitForChanges() error {
+	time.Sleep(time.Second * 10)
 	// // use the current context in kubeconfig
 	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
 	// if err != nil {

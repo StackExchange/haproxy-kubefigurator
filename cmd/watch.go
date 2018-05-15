@@ -12,7 +12,7 @@ var watchCmd = &cobra.Command{
 	Short: "Watch for configuration changes, and save to etcd",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterName, commandLineFlags.etcdOptions, true, false)
+		haproxyconfigurator.Run(commandLineFlags.kubeconfig, commandLineFlags.clusterName, commandLineFlags.etcdOptions, true, true)
 	},
 }
 
