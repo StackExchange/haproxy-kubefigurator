@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
-	flag.CommandLine.Parse([]string{}) // quiets down kube client library logging
+	// quiets down kube client library logging
+	flag.CommandLine.Parse([]string{})
 	cmd.Execute()
 }

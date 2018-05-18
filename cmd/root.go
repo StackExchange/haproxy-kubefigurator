@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -10,10 +9,14 @@ import (
 	"github.com/StackExchange/haproxy-kubefigurator/haproxyconfigurator"
 )
 
+var teardown = func() {}
+
 var commandLineFlags = struct {
-	clusterName string
-	kubeconfig  string
-	verbosity   int
+	clusterName    string
+	kubeconfig     string
+	verbosity      int
+	haproxyConfig  string
+	restartCommand string
 }{}
 var logger = logrus.New()
 
@@ -27,16 +30,20 @@ var RootCmd = &cobra.Command{
 
 // Execute is the entrypoint for the app
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	err := RootCmd.Execute()
+	if err != nil {
+		logger.Error(err)
+		defer os.Exit(1)
 	}
+	teardown()
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.clusterName, "cluster", "", "", "cluster string for scoped services")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.clusterName, "cluster", "", "", "Cluster string for scoped services")
 	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.kubeconfig, "kubeconfig", "", "", "Kubeconfig file path; leave empty for in-cluster config")
 	RootCmd.PersistentFlags().CountVarP(&commandLineFlags.verbosity, "verbosity", "v", "Output verbosity")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.haproxyConfig, "haproxy-config", "", "dynamic.cfg", "Location of HAProxy configuration file to generate")
+	RootCmd.PersistentFlags().StringVarP(&commandLineFlags.restartCommand, "exec", "", "systemctl restart haproxy", "Command to execute after config is updated")
 }
 
 func persistentPreRun(cmd *cobra.Command, args []string) {
@@ -56,6 +63,5 @@ func persistentPreRun(cmd *cobra.Command, args []string) {
 		logger.Level = logrus.DebugLevel
 		break
 	}
-
 	haproxyconfigurator.SetLogger(logger)
 }

@@ -11,23 +11,21 @@ import (
 
 type kubernetesNodeIPs map[string]string
 
+func kubeClient(kubeConfigPath string) (*kubernetes.Clientset, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(config)
+}
+
 // getAllKubernetesNodes loads the nodes in the target kubernetes cluster
-func getAllKubernetesNodes() (kubernetesNodeIPs, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
+func getAllKubernetesNodes(client *kubernetes.Clientset) (kubernetesNodeIPs, error) {
+	nodes, err := client.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
-
 	nodeIPs := kubernetesNodeIPs{}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
 	for _, node := range nodes.Items {
 		for _, address := range node.Status.Addresses {
 			if address.Type == "InternalIP" {
@@ -38,19 +36,9 @@ func getAllKubernetesNodes() (kubernetesNodeIPs, error) {
 	return nodeIPs, nil
 }
 
-func getProxiedKubernetesServices() ([]v1.Service, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
-	if err != nil {
-		return nil, err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
+func getProxiedKubernetesServices(client *kubernetes.Clientset) ([]v1.Service, error) {
 	proxiedServices := []v1.Service{}
-	services, err := clientset.CoreV1().Services(v1.NamespaceAll).List(metav1.ListOptions{})
+	services, err := client.CoreV1().Services(v1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,22 +50,31 @@ func getProxiedKubernetesServices() ([]v1.Service, error) {
 	return proxiedServices, nil
 }
 
-func watchForServiceChanges(ch chan<- bool) {
+func watchForServiceChanges(client *kubernetes.Clientset, ch chan<- bool) {
 	for {
-		time.Sleep(time.Second * 10)
-		ch <- true
+		start := time.Now()
+		logger.Debug("Watching for service changes")
+		w, err := client.CoreV1().Services("").Watch(metav1.ListOptions{})
+		if err != nil {
+			logger.Error(err)
+			time.Sleep(time.Second)
+			continue
+		}
+		var timer *time.Timer
+		const quietTime = time.Second * 2
+		for ev := range w.ResultChan() {
+			logger.Infof("Detected change to service %s (%s)", ev.Object.(*v1.Service).Name, ev.Type)
+			if timer != nil {
+				timer.Stop()
+			}
+			timer = time.AfterFunc(quietTime, func() {
+				select {
+				case ch <- true: // if can't send, there is already a pending update.
+				default:
+					logger.Infof("Queue full. Already a pending config update.")
+				}
+			})
+		}
+		logger.Infof("Watch closed after %s", time.Now().Sub(start))
 	}
-	// // use the current context in kubeconfig
-	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// clientset, err := kubernetes.NewForConfig(config)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// w, err := clientset.CoreV1().Services("").Watch(metav1.ListOptions{})
-	// return err
 }

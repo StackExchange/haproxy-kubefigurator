@@ -2,17 +2,18 @@ package haproxyconfigurator
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 )
 
 var (
-	kubeconfigFile string
-	logger         = logrus.New()
+	logger = logrus.New()
 )
 
 // SetLogger sets the logrus logger for use by the configurator
@@ -20,42 +21,67 @@ func SetLogger(l *logrus.Logger) {
 	logger = l
 }
 
+func GenerateConfig(client *kubernetes.Clientset, clusterName string) (string, error) {
+	logger.Debug("Fetching Kubernetes Node Info")
+	nodes, err := getAllKubernetesNodes(client)
+	if err != nil {
+		return "", err
+	}
+	logger.Debug("Fetching Kubernetes Service Info")
+	services, err := getProxiedKubernetesServices(client)
+	if err != nil {
+		return "", err
+	}
+	logger.Debug("Generating New HAProxy Config")
+	config, err := buildHaproxyConfig(nodes, services, clusterName)
+	if err != nil {
+		return "", err
+	}
+	return config, nil
+}
+
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubeconfigFilePath string, clusterName string, watch bool, shouldPublish bool) {
-	kubeconfigFile = kubeconfigFilePath
-	lastConfigPushed := ""
+func Run(kubeconfigPath string, clusterName string, haproxyConfigPath string, watch bool, shouldPublish bool) {
+	client, err := kubeClient(kubeconfigPath)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	ch := make(chan bool, 1)
 	go func() {
-		defer close(ch)
-		ch <- true
 		if watch {
-			watchForServiceChanges(ch)
-		}
-	}()
-	for range ch {
-		nodes, err := getAllKubernetesNodes()
-		if err != nil {
-			logger.Fatal(err)
-		}
-		services, err := getProxiedKubernetesServices()
-		if err != nil {
-			logger.Fatal(err)
-		}
-		config, err := buildHaproxyConfig(nodes, services, clusterName, shouldPublish)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		anyChange := config != lastConfigPushed
-		if anyChange {
-			color.White(config)
-			if shouldPublish {
-				//publish(config, etcdOptions)
-				lastConfigPushed = config
-			}
+			watchForServiceChanges(client, ch)
 		} else {
-			color.Green("No change")
+			ch <- true
+		}
+		close(ch)
+	}()
+	currentConfig := ""
+	if shouldPublish {
+		dat, _ := ioutil.ReadFile(haproxyConfigPath)
+		currentConfig = string(dat)
+	}
+	for range ch {
+		config, err := GenerateConfig(client, clusterName)
+		if err != nil {
+			logger.Error(err)
+			continue
+		}
+		changed := config != currentConfig
+		if changed {
+			logger.Info("Config changed!\n", config)
+			if shouldPublish {
+				publish(config, haproxyConfigPath)
+			}
+			currentConfig = config
+		} else {
+			logger.Debug("No change to config")
 		}
 	}
+}
+
+func publish(config string, haproxyConfigPath string) {
+	ioutil.WriteFile(haproxyConfigPath, []byte(config), 0644)
 }
 
 type servicePortWrapper v1.ServicePort
@@ -74,7 +100,7 @@ func (s serviceWrapper) annoExists(p servicePortWrapper, name string) (string, b
 	return str, ok
 }
 
-func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string, shouldPublish bool) (string, error) {
+func buildHaproxyConfig(nodes map[string]string, services []v1.Service, clusterName string) (string, error) {
 	var configurator = HaproxyConfigurator{}
 	configurator.Initialize()
 
