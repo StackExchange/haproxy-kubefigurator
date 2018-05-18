@@ -14,4 +14,4 @@ homepage: "https://github.com/StackExchange/haproxy-kubefigurator"
 license: "MIT"
 bindir: "/usr/local/bin"
 files:
-  /builds/bin/nfpm: "/usr/local/bin/haproxy-kubefigurator"
+  haproxy-kubefigurator: "/usr/local/bin/haproxy-kubefigurator"
