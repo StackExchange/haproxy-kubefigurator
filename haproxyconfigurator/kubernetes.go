@@ -62,8 +62,11 @@ func getProxiedKubernetesServices() ([]v1.Service, error) {
 	return proxiedServices, nil
 }
 
-func waitForChanges() error {
-	time.Sleep(time.Second * 10)
+func watchForServiceChanges(ch chan<- bool) {
+	for {
+		time.Sleep(time.Second * 10)
+		ch <- true
+	}
 	// // use the current context in kubeconfig
 	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
 	// if err != nil {
@@ -77,5 +80,4 @@ func waitForChanges() error {
 
 	// w, err := clientset.CoreV1().Services("").Watch(metav1.ListOptions{})
 	// return err
-	return nil
 }
