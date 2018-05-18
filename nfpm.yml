@@ -1,0 +1,17 @@
+name: "haproxy-kubefigurator"
+arch: "amd64"
+platform: "linux"
+version: "TC_VERSION"
+section: "default"
+priority: "extra"
+provides:
+- haproxy-kubefigurator
+maintainer: "Stack Overflow SRE <sre-team@stackoverflow.com>"
+description: |
+  Automatic HAProxy Config Generation form Kubernetes Service Metadata
+vendor: "StackExchange"
+homepage: "https://github.com/StackExchange/haproxy-kubefigurator"
+license: "MIT"
+bindir: "/usr/local/bin"
+files:
+  /builds/bin/nfpm: "/usr/local/bin/haproxy-kubefigurator"

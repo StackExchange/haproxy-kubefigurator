@@ -1,2 +1,4 @@
 *.cfg
 *.pem
+haproxy-kubefigurator
+test.yml
