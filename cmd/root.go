@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/stackexchange/haproxy-kubefigurator/haproxyconfigurator"
+	"github.com/StackExchange/haproxy-kubefigurator/haproxyconfigurator"
 )
 
 var commandLineFlags = struct {

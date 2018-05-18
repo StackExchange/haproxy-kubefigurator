@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/stackexchange/haproxy-kubefigurator/haproxyconfigurator"
+	"github.com/StackExchange/haproxy-kubefigurator/haproxyconfigurator"
 )
 
 // viewCmd represents the view command

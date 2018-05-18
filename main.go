@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/stackexchange/haproxy-kubefigurator/cmd"
+	"github.com/StackExchange/haproxy-kubefigurator/cmd"
 )
 
 func main() {
