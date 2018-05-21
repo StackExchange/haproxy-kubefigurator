@@ -3,6 +3,8 @@ package haproxyconfigurator
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -41,7 +43,7 @@ func GenerateConfig(client *kubernetes.Clientset, clusterName string) (string, e
 }
 
 // Run polls the kubernetes configuration and builds out load balancer configurations based on the services in kubernetes
-func Run(kubeconfigPath string, clusterName string, haproxyConfigPath string, watch bool, shouldPublish bool) {
+func Run(kubeconfigPath string, clusterName string, haproxyConfigPath string, watch bool, shouldPublish bool, command string) {
 	client, err := kubeClient(kubeconfigPath)
 	if err != nil {
 		logger.Fatal(err)
@@ -71,7 +73,7 @@ func Run(kubeconfigPath string, clusterName string, haproxyConfigPath string, wa
 		if changed {
 			logger.Info("Config changed!\n", config)
 			if shouldPublish {
-				publish(config, haproxyConfigPath)
+				publish(config, haproxyConfigPath, command)
 			}
 			currentConfig = config
 		} else {
@@ -80,8 +82,17 @@ func Run(kubeconfigPath string, clusterName string, haproxyConfigPath string, wa
 	}
 }
 
-func publish(config string, haproxyConfigPath string) {
+func publish(config string, haproxyConfigPath string, command string) {
 	ioutil.WriteFile(haproxyConfigPath, []byte(config), 0644)
+	parts := strings.Split(command, " ")
+	logger.Infof("Executing '%s'", command)
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		logger.Error(err)
+	}
+	logger.Info("Done executing command")
 }
 
 type servicePortWrapper v1.ServicePort
